@@ -129,7 +129,7 @@ export default {
     },
 
     initDatabase() {
-      const db = new PouchDB('http://admin:admin@localhost:5984/database')
+      const db = new PouchDB('http://admin:admin@localhost:5984/post')
       if (db) {
         console.log("Connected to collection 'post'")
       } else {
