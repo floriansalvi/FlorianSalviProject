@@ -1,5 +1,5 @@
 <script lang="ts">
-import PouchDB from 'pouchdb';
+import PouchDb from 'pouchdb';
 
 export default {
   data() {
@@ -13,10 +13,9 @@ export default {
     inc() {},
 
     initDatabase() {
-      // lancer une initialisation de la base de données
-      // Si la connexion est ok, alors je fais un fetchdata
-      const db = new PouchDB('http://admin:admin@localhost:5984/items')
-      if (db) {
+
+      const $db = new PouchDb('http://admin:admin@localhost:5984/items')
+      if ($db) {
         console.log('valid')
         return
       }
@@ -24,7 +23,7 @@ export default {
     },
 
     fetchData() {
-      // récupérer tous les documents de ma collection
+      
     }
   },
 

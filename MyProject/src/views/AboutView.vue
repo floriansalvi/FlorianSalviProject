@@ -1,79 +1,158 @@
-<template>
-  <div class="about">
-    <h1>This is an about page</h1>
-  </div>
-</template>
 <script lang="ts">
-import PouchDB from 'pouchdb';
-import { ref } from 'vue';
+import { ref } from 'vue'
+import PouchDB from 'pouchdb'
+
+declare interface Post {
+  _id: string
+  _rev?: string
+  doc: {
+    post_name: string
+    post_content: string
+    attributes: {
+      creation_date: string
+      modified: string
+    }
+  }
+}
 
 export default {
   data() {
     return {
-      datas: [],
-      databaseReference: null as PouchDB.Database | null
+      total: 0,
+      postsData: [] as Post[],
+      document: null as Post | null,
+      storage: null as PouchDB.Database | null
     }
   },
 
-  methods: {
-    inc() { },
-
-    initDatabase() {
-      // lancer une initialisation de la base de données
-      // Si la connexion est ok, alors je fais un fetchdata
-      const db = new PouchDB('http://admin:admin@localhost:5984/items')
-      if (db) {
-        console.log('valid');
-        this.databaseReference = db
-        return
+  mounted() {
+    this.initDatabase()
+    this.fetchData()
+    this.createData({
+      _id: '1',
+      doc: {
+        post_name: 'Post 1',
+        post_content: 'Contenu du post 1',
+        attributes: {
+          creation_date: '2021-09-01',
+          modified: 'not yet'
+        }
       }
-      console.log('invalid');
-    },
-    fetchData() {
-      // Ici je suis dans mon component
-      // this.total // access ok 
-      const storage = ref(this.databaseReference);
-      const self = this; // this = mon composant
-      // self = le composant sur je manipule
-      if (storage.value) {
-        // function de l'objet de ma base de donnéee
-        // donc je ne suis plus dans mon composant
-        (storage.value).allDocs({
-          include_docs: true,
-          attachments: true
-        }).then(function (result: any) {
-          // Une fois la fonction exécuté, il faut que je mette à jour mon modèle
-          // hors de mon composant
-          // Méthode 1
-          // this !== n'est pas mon composant, mais la base de données
-          // const self = this
-          // en appelant self, je peux mettre à jour mon modèle de données
-          console.log('fetchData success =>', result);
-          self.datas = result.rows;
-          console.log(result.rows)
-        }.bind(this)).catch(function (error: any) {
-          // méthode 2
-          // bind(this)
-          // Execute ce code comme si tu étais sur "this" à savoir le composant
-          console.log('fetchData error', error);
-        });
+    })
+    this.updateData({
+      _id: '1',
+      doc: {
+        post_name: 'Post 1',
+        post_content: 'Contenu du post 1',
+        attributes: {
+          creation_date: '2021-09-01',
+          modified: 'yes'
+        }
       }
-    },
+    })
   },
 
-  mounted() {
-    this.initDatabase();
-    this.fetchData();
+  methods: {
+    async updateData(document: Post) {
+      const db = this.storage
+
+      // Vérifier si le stockage est bien défini
+      if (!db) {
+        console.error("Le stockage n'est pas défini.")
+        return
+      }
+
+      try {
+        // Récupérer le document existant pour obtenir son _rev (version)
+        const existingDoc = await db.get(document._id)
+        document._rev = existingDoc._rev // Assigner _rev pour la mise à jour
+
+        // Mettre à jour le document
+        await db.put(document)
+        console.log('Mise à jour réussie')
+      } catch (error) {
+        console.error('Erreur lors de la mise à jour', error)
+      }
+    },
+
+    async deleteData(document: Post) {
+      console.log('entrée dans la méthode delete')
+      const db = this.storage
+
+      // Vérifier si le stockage est bien défini
+      if (!db) {
+        console.error("Le stockage n'est pas défini.")
+        return
+      }
+
+      try {
+        // Récupérer le document existant pour obtenir son _rev
+        const existingDoc = await db.get(document._id)
+        await db.remove(existingDoc._id, existingDoc._rev)
+        console.log('Suppression réussie')
+      } catch (error) {
+        console.log('catch delete')
+        console.error('Erreur lors de la suppression', error)
+      }
+    },
+
+    fetchData() {
+      const storage = ref(this.storage)
+      const self = this
+      if (storage.value) {
+        storage.value
+          .allDocs({
+            include_docs: true,
+            attachments: true
+          })
+          .then(
+            function (result: any) {
+              console.log('fetchData success', result)
+              self.postsData = result.rows
+            }.bind(this)
+          )
+          .catch(function (error: any) {
+            console.log('fetchData error', error)
+          })
+      }
+    },
+
+    createData(document: Post) {
+      const db = ref(this.storage)
+      try {
+        if (document) {
+          db.value?.post(document)
+        }
+      } catch (e) {
+        throw new Error('Impossible de modifer le document')
+      }
+    },
+
+    initDatabase() {
+      const db = new PouchDB('http://admin:admin@localhost:5984/database')
+      if (db) {
+        console.log("Connected to collection 'post'")
+      } else {
+        console.warn('Something went wrong')
+      }
+      this.storage = db
+    }
   }
 }
 </script>
 
-<style>
-@media (min-width: 1024px) {
-  .about {
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-  }
-}
-</style>
+<template>
+  <div>
+    <h1>Nombre de post: {{ postsData.length }}</h1>
+    <ul>
+      <li v-for="post in postsData" :key="post._id">
+        <div class="ucfirst">
+          {{ post.doc.post_name
+          }}<em style="font-size: x-small" v-if="post.doc.attributes?.creation_date">
+            - {{ post.doc.attributes?.creation_date }}
+          </em>
+        </div>
+      </li>
+    </ul>
+  </div>
+</template>
